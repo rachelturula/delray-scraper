@@ -2,25 +2,29 @@ import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
+  // --- guardrails -----------------------------------------------------------
   if (req.method !== "POST") {
-    res.status(405).json({ error: "POST only" });
-    return;
+    return res.status(405).json({ error: "POST only" });
   }
   const { url } = req.body || {};
   if (!url) {
-    res.status(400).json({ error: "Missing url" });
-    return;
+    return res.status(400).json({ error: "Missing url" });
   }
 
-const MAX = 500 * 1024;                // 500 kB cap
-const raw = await fetch(url, { headers: { "User-Agent": "DelRayScraperBot/1.0" } })
-                   .then(r => r.text())
-                   .catch(() => "");
+  // --- fetch & trim ---------------------------------------------------------
+  const MAX = 200 * 1024; // 200 kB hard cap keeps payloads well below action limit
+  const raw = await fetch(url, {
+    headers: { "User-Agent": "DelRayScraperBot/1.0" }
+  })
+    .then(r => r.text())
+    .catch(() => "");
 
-const html = raw.length > MAX ? raw.slice(0, MAX) : raw;   // trim big pages
+  const html = raw.length > MAX ? raw.slice(0, MAX) : raw;
+  // --------------------------------------------------------------------------
 
   const $ = cheerio.load(html);
 
+  // --- best-effort field extraction ----------------------------------------
   const title =
     $("meta[property='og:title']").attr("content") ||
     $("title").first().text() ||
@@ -49,6 +53,7 @@ const html = raw.length > MAX ? raw.slice(0, MAX) : raw;   // trim big pages
     .get()
     .filter(href => href && !href.startsWith("#"))
     .slice(0, 20);
+  // --------------------------------------------------------------------------
 
   res.status(200).json({
     html,

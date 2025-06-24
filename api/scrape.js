@@ -12,9 +12,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  const html = await fetch(url, { headers: { "User-Agent": "DelRayScraperBot/1.0" } })
-                      .then(r => r.text())
-                      .catch(() => "");
+const MAX = 500 * 1024;                // 500 kB cap
+const raw = await fetch(url, { headers: { "User-Agent": "DelRayScraperBot/1.0" } })
+                   .then(r => r.text())
+                   .catch(() => "");
+
+const html = raw.length > MAX ? raw.slice(0, MAX) : raw;   // trim big pages
+
   const $ = cheerio.load(html);
 
   const title =
